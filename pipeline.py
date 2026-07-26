@@ -13,7 +13,13 @@ def parse_clock(clock_str, period):
     seconds = float(seconds)
 
     seconds_left_in_quarter = (min * 60) + seconds
-    seconds_remaining = (4 - period) * 720 + seconds_left_in_quarter
+
+    # overtime periods are 5 minutes, not 12, and nothing is scheduled after them.
+    # without this branch (4 - period) * 720 goes negative from period 5 on
+    if period > 4:
+        seconds_remaining = seconds_left_in_quarter
+    else:
+        seconds_remaining = (4 - period) * 720 + seconds_left_in_quarter
     return seconds_remaining
 
 
@@ -41,6 +47,18 @@ def process_game(game_id, home_team_won):
     return df
 
 
+# NBA game ids encode the game type in the third character:
+# 1 = preseason, 2 = regular season, 3 = all-star, 4 = playoffs, 5 = play-in, 6 = NBA Cup final
+# preseason is exhibition basketball, rosters are experimental and starters sit, so the
+# result says nothing about who actually wins games. all-star is the same problem, worse.
+# both get dropped here at collection so they never reach the CSVs.
+EXCLUDED_GAME_PREFIXES = ('001', '003')
+
+
+def is_useful_game(game_id):
+    return not str(game_id).startswith(EXCLUDED_GAME_PREFIXES)
+
+
 def build_dataset(season):
     save_path = f"data/{season}_dataset.csv"
 
@@ -48,10 +66,18 @@ def build_dataset(season):
     gamesDF = gameIDsList.get_data_frames()[0]
     uniqueGames = gamesDF['GAME_ID'].unique()
 
+    # drop preseason and all-star before we spend an API call on them
+    before = len(uniqueGames)
+    uniqueGames = [g for g in uniqueGames if is_useful_game(g)]
+    print(f"Excluded {before - len(uniqueGames)} preseason/all-star games")
+
     # resume from where we left off if interrupted
     if os.path.exists(save_path):
-        existing = pd.read_csv(save_path)
-        done_ids = existing['gameId'].unique()
+        # gameId has to be read as a string. pandas otherwise turns '0022500001' into
+        # the int 22500001, which never matches the string ids from the API, so the
+        # resume check silently failed and every game got downloaded and appended again
+        existing = pd.read_csv(save_path, dtype={'gameId': str})
+        done_ids = set(existing['gameId'].unique())
         uniqueGames = [g for g in uniqueGames if g not in done_ids]
         print(f"Resuming — {len(uniqueGames)} games remaining")
     else:
@@ -77,6 +103,9 @@ def build_dataset(season):
     return pd.read_csv(save_path)
 
 
-dataset = build_dataset("2025-26")
-print(f"\nDataset shape: {dataset.shape}")
-print(dataset[['score_diff', 'seconds_remaining', 'possession', 'home_fouls', 'away_fouls', 'home_team_won']].head())
+# guarded so that importing pipeline (for parse_clock or is_useful_game) doesn't kick
+# off a 30-60 minute scrape as a side effect
+if __name__ == "__main__":
+    dataset = build_dataset("2025-26")
+    print(f"\nDataset shape: {dataset.shape}")
+    print(dataset[['score_diff', 'seconds_remaining', 'possession', 'home_fouls', 'away_fouls', 'home_team_won']].head())

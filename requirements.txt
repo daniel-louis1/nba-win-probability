@@ -1,0 +1,17 @@
+# core app + in-game model
+flask
+torch
+numpy
+pandas
+scikit-learn
+joblib
+
+# data sources
+nba_api
+requests
+beautifulsoup4
+lxml
+
+# the pregame model uses scikit-learn's HistGradientBoostingClassifier rather than
+# xgboost. xgboost ships its own OpenMP runtime that segfaults when loaded into the
+# same process as torch on macOS, and app.py serves both models together

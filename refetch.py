@@ -11,7 +11,13 @@ def parse_clock(clock_str, period):
     min = float(min)
     seconds = float(seconds)
     seconds_left_in_quarter = (min * 60) + seconds
-    seconds_remaining = (4 - period) * 720 + seconds_left_in_quarter
+
+    # overtime periods are 5 minutes, not 12, and nothing is scheduled after them.
+    # without this branch (4 - period) * 720 goes negative from period 5 on
+    if period > 4:
+        seconds_remaining = seconds_left_in_quarter
+    else:
+        seconds_remaining = (4 - period) * 720 + seconds_left_in_quarter
     return seconds_remaining
 
 #fetch play-by-play data for a single game from NBA API and get features
@@ -65,6 +71,7 @@ def refetch_missing(season):
             print(f"  Skipping {game_id}: {e}")
 
 
-refetch_missing("2024-25")
-refetch_missing("2025-26")
-print("\nDone! All missing games fetched.")
+if __name__ == "__main__":
+    refetch_missing("2024-25")
+    refetch_missing("2025-26")
+    print("\nDone! All missing games fetched.")

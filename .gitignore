@@ -3,3 +3,6 @@ venv/
 __pycache__/
 *.pyc
 .DS_Store
+
+# local safety copies of the old model artifacts, not worth publishing
+*.backup
