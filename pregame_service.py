@@ -146,6 +146,10 @@ def predict(home, away, home_rest=2, away_rest=2):
     row = build_features(home, away, home_rest, away_rest)
     X = np.array([[row[c] for c in FEATURE_COLUMNS]], dtype=float)
 
+    #serve the tuned blend, not the forest on its own. the forest is the better
+    #standalone model on accuracy (0.6808 to 0.6679) but the blend is better
+    #calibrated, and once it feeds into blend.py that is what matters: blended Q1
+    #accuracy is 0.6972 with the blend against 0.6654 with the forest alone
     weights = models["weights"]
     probability = (
         weights["lr"] * models["logistic"].predict_proba(models["scaler"].transform(X))[:, 1]
